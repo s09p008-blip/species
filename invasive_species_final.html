@@ -1,0 +1,1264 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>外来種シミュレーション</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel-bg: #111827;
+      --card-bg: #020617;
+      --text-main: #e5e7eb;
+      --text-muted: #9ca3af;
+      --border-soft: #1f2937;
+      --danger: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      margin: 0;
+      background: radial-gradient(circle at top left, #1e293b, #020617 60%);
+      color: var(--text-main);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+      overflow: hidden;
+      touch-action: none;
+    }
+
+    .container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      padding: 8px;
+      gap: 8px;
+    }
+
+    header {
+      padding: 8px 12px;
+      border-radius: 10px;
+      background: linear-gradient(90deg, rgba(148,163,184,0.15), rgba(15,23,42,0.9));
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+      flex-shrink: 0;
+    }
+
+    header h1 {
+      font-size: 16px;
+      margin: 0 0 4px 0;
+      letter-spacing: 0.03em;
+    }
+
+    header p {
+      margin: 0;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .main {
+      display: grid;
+      grid-template-columns: minmax(0, 1.8fr) minmax(280px, 1fr);
+      gap: 8px;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .sim-panel {
+      position: relative;
+      background: radial-gradient(circle at top, #1d4ed8 0, #020617 65%);
+      border-radius: 14px;
+      padding: 8px;
+      box-shadow: 0 20px 45px rgba(0,0,0,0.5);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      border: 1px solid rgba(148,163,184,0.25);
+      min-height: 0;
+    }
+
+    .canvas-container {
+      position: relative;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 200px;
+    }
+
+    #ecosystemCanvas {
+      flex: 1;
+      width: 100%;
+      border-radius: 10px;
+      background: radial-gradient(circle at center, #0ea5e9 0, #0f172a 60%);
+      border: 1px solid rgba(15,23,42,0.9);
+      box-shadow: inset 0 0 25px rgba(0,0,0,0.8);
+      cursor: pointer;
+      touch-action: none;
+    }
+
+    .controls-bar {
+      display: flex;
+      gap: 4px;
+      padding: 6px;
+      background: rgba(15,23,42,0.9);
+      border-radius: 10px;
+      border: 1px solid var(--border-soft);
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .controls-bar button {
+      padding: 6px 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(148,163,184,0.3);
+      background: rgba(15,23,42,0.6);
+      color: var(--text-main);
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+    }
+
+    .controls-bar button:active {
+      transform: scale(0.95);
+    }
+
+    .controls-bar button.active {
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      border-color: rgba(34,197,94,0.9);
+      color: #022c22;
+      font-weight: 600;
+    }
+
+    .controls-bar button.paused {
+      background: linear-gradient(135deg, #fbbf24, #f59e0b);
+      border-color: rgba(251,191,36,0.9);
+      color: #111827;
+      font-weight: 600;
+    }
+
+    .controls-bar button.danger {
+      background: linear-gradient(135deg, #f87171, #ef4444);
+      border-color: rgba(239,68,68,0.9);
+      color: #111827;
+      font-weight: 600;
+    }
+
+    .speed-control {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-left: auto;
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .speed-control input {
+      width: 60px;
+    }
+
+    .sim-footer {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      font-size: 10px;
+      color: var(--text-muted);
+      padding: 6px;
+      background: rgba(15,23,42,0.6);
+      border-radius: 8px;
+    }
+
+    .population-summary {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .pop-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .species-indicator {
+      font-size: 14px;
+    }
+
+    .species-count {
+      font-weight: 600;
+    }
+
+    .time-display {
+      text-align: right;
+      font-size: 16px;
+      font-weight: 700;
+      color: #22c55e;
+    }
+
+    .control-panel {
+      background: radial-gradient(circle at top left, #0b1120, #020617 70%);
+      border-radius: 14px;
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      box-shadow: 0 20px 45px rgba(0,0,0,0.5);
+      border: 1px solid rgba(31,41,55,0.9);
+      overflow-y: auto;
+    }
+
+    .control-panel h2 {
+      margin: 0;
+      font-size: 14px;
+      letter-spacing: 0.05em;
+    }
+
+    .section {
+      background: rgba(15,23,42,0.9);
+      border-radius: 10px;
+      padding: 8px;
+      border: 1px solid var(--border-soft);
+    }
+
+    .section h3 {
+      margin: 0 0 8px 0;
+      font-size: 12px;
+      color: #e5e7eb;
+      font-weight: 600;
+    }
+
+    .preset-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 6px;
+    }
+
+    .preset-card {
+      padding: 8px;
+      border-radius: 8px;
+      border: 2px solid transparent;
+      background: rgba(15,23,42,0.6);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .preset-card:active {
+      transform: scale(0.98);
+    }
+
+    .preset-card.selected {
+      border-color: #22c55e;
+      background: rgba(34,197,94,0.1);
+    }
+
+    .preset-card .preset-title {
+      font-size: 11px;
+      font-weight: 600;
+      margin-bottom: 4px;
+      color: #e5e7eb;
+    }
+
+    .preset-card .preset-desc {
+      font-size: 9px;
+      color: var(--text-muted);
+      line-height: 1.3;
+    }
+
+    .preset-card .preset-species {
+      margin-top: 4px;
+      font-size: 12px;
+    }
+
+    .load-btn {
+      width: 100%;
+      padding: 10px;
+      margin-top: 6px;
+      border-radius: 8px;
+      border: none;
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+      color: white;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .load-btn:active {
+      transform: scale(0.98);
+    }
+
+    .param-control {
+      margin-top: 4px;
+    }
+
+    .param-control label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      margin-bottom: 4px;
+    }
+
+    .param-control input[type="range"] {
+      width: 100%;
+      height: 4px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: linear-gradient(90deg, #0ea5e9, #22c55e);
+      border-radius: 999px;
+      outline: none;
+    }
+
+    .param-control input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #f9fafb;
+      border: 1px solid #0f172a;
+      cursor: pointer;
+      box-shadow: 0 0 0 3px rgba(56,189,248,0.45);
+    }
+
+    .param-control input[type="range"]::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #f9fafb;
+      border: 1px solid #0f172a;
+      cursor: pointer;
+      box-shadow: 0 0 0 3px rgba(56,189,248,0.45);
+    }
+
+    .graph-section {
+      background: radial-gradient(circle at top, #020617, #020617 60%);
+      border-radius: 10px;
+      padding: 6px 8px;
+      box-shadow: 0 18px 40px rgba(0,0,0,0.7);
+      border: 1px solid rgba(15,23,42,0.9);
+      min-height: 100px;
+    }
+
+    #graphCanvas {
+      width: 100%;
+      height: 80px;
+      border-radius: 8px;
+      background: radial-gradient(circle at top left, #0b1120, #020617 65%);
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-size: 9px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .legend-color {
+      width: 12px;
+      height: 3px;
+      border-radius: 999px;
+    }
+
+    .analysis-box {
+      background: linear-gradient(135deg, rgba(59,130,246,0.15), rgba(37,99,235,0.1));
+      border: 2px solid rgba(59,130,246,0.4);
+      border-radius: 10px;
+      padding: 8px;
+    }
+
+    .analysis-box h3 {
+      margin: 0 0 6px 0;
+      font-size: 11px;
+      color: #3b82f6;
+    }
+
+    .analysis-box p {
+      margin: 4px 0;
+      font-size: 10px;
+      line-height: 1.4;
+    }
+
+    .note {
+      font-size: 10px;
+      color: var(--text-muted);
+      line-height: 1.4;
+      padding: 8px;
+      background: rgba(15,23,42,0.5);
+      border-radius: 6px;
+      border-left: 3px solid #3b82f6;
+    }
+
+    /* タブレット・スマホ対応 */
+    @media (max-width: 900px) {
+      .main {
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr auto;
+      }
+      
+      .control-panel {
+        max-height: 40vh;
+      }
+
+      header h1 {
+        font-size: 14px;
+      }
+
+      .controls-bar {
+        gap: 3px;
+        padding: 4px;
+      }
+
+      .controls-bar button {
+        padding: 5px 8px;
+        font-size: 10px;
+      }
+
+      .speed-control {
+        width: 100%;
+        margin-left: 0;
+        justify-content: center;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .container {
+        padding: 4px;
+        gap: 4px;
+      }
+
+      header {
+        padding: 6px 8px;
+      }
+
+      header h1 {
+        font-size: 13px;
+      }
+
+      header p {
+        font-size: 10px;
+      }
+    }
+
+    .tooltip {
+      position: fixed;
+      background: rgba(15,23,42,0.95);
+      color: #e5e7eb;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s;
+      border: 1px solid rgba(148,163,184,0.3);
+      z-index: 10000;
+      white-space: nowrap;
+    }
+
+    .tooltip.show {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>🔬 外来種生態系シミュレーション</h1>
+    <p>プリセットシナリオから学ぶ、外来種の影響と管理</p>
+  </header>
+
+  <div class="main">
+    <!-- シミュレーション画面 -->
+    <div class="sim-panel">
+      <div class="canvas-container">
+        <canvas id="ecosystemCanvas"></canvas>
+        
+        <div class="controls-bar">
+          <button id="playBtn" class="active">▶ 再生</button>
+          <button id="pauseBtn" class="paused">⏸ 停止</button>
+          <button id="resetBtn" class="danger">🔄 リセット</button>
+          <div class="speed-control">
+            <span>速度:</span>
+            <input type="range" id="speedSlider" min="0.5" max="5" step="0.5" value="1">
+            <span id="speedValue">1x</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="sim-footer">
+        <div class="population-summary" id="populationSummary"></div>
+        <div class="time-display" id="timeDisplay">0.0s</div>
+      </div>
+
+      <div class="graph-section">
+        <canvas id="graphCanvas"></canvas>
+        <div class="legend" id="legend"></div>
+      </div>
+    </div>
+
+    <!-- コントロールパネル -->
+    <div class="control-panel">
+      <h2>📋 シナリオ選択</h2>
+      
+      <div class="section">
+        <h3>🎯 プリセットシナリオ</h3>
+        <div class="preset-grid" id="presetGrid"></div>
+        <button class="load-btn" id="loadPresetBtn">📥 シナリオを読み込む</button>
+      </div>
+
+      <div class="section">
+        <h3>⚙️ パラメータ調整</h3>
+        <div id="paramControls"></div>
+      </div>
+
+      <div class="section">
+        <h3>🗑️ 種の削除</h3>
+        <div class="note">
+          画面上の個体をタップ/クリックして削除できます
+        </div>
+      </div>
+
+      <div class="analysis-box">
+        <h3>📊 生態系分析</h3>
+        <div id="analysisContent">
+          <p style="color: var(--text-muted); font-style: italic; font-size: 10px;">
+            シナリオを読み込んでシミュレーションを開始すると、分析結果が表示されます
+          </p>
+        </div>
+      </div>
+
+      <div class="note">
+        💡 <strong>探究課題</strong><br>
+        • どのタイミングで介入すべき?<br>
+        • 外来種を減らせば在来種は回復する?<br>
+        • 完全駆除は可能?<br>
+        • パラメータを変えると結果は?
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+  // ==============================
+  // キャンバス設定
+  // ==============================
+
+  const ecosystemCanvas = document.getElementById("ecosystemCanvas");
+  const graphCanvas = document.getElementById("graphCanvas");
+  const ecoCtx = ecosystemCanvas.getContext("2d");
+  const graphCtx = graphCanvas.getContext("2d");
+  const tooltip = document.getElementById("tooltip");
+
+  function resizeCanvas(canvas) {
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
+    }
+  }
+
+  resizeCanvas(ecosystemCanvas);
+  resizeCanvas(graphCanvas);
+  window.addEventListener("resize", () => {
+    resizeCanvas(ecosystemCanvas);
+    resizeCanvas(graphCanvas);
+  });
+
+  // ==============================
+  // 種データベース（絵文字の互換性を考慮）
+  // ==============================
+
+  const speciesData = {
+    funa: { name: 'フナ', icon: '🐟', color: '#38bdf8', size: [5, 7], growth: 0.003, compete: 0.7, type: 'native' },
+    moroko: { name: 'モロコ', icon: '🐠', color: '#0ea5e9', size: [4, 6], growth: 0.004, compete: 0.5, type: 'native' },
+    ebi: { name: 'エビ', icon: '🦐', color: '#06b6d4', size: [3, 5], growth: 0.005, compete: 0.4, type: 'native' },
+    bass: { name: 'バス', icon: '🐡', color: '#f97316', size: [7, 10], growth: 0.0035, compete: 1.5, type: 'invasive' },
+    bluegill: { name: 'ギル', icon: '🐟', color: '#ea580c', size: [5, 8], growth: 0.004, compete: 1.3, type: 'invasive' },
+    plant1: { name: '在来草', icon: '🌸', color: '#4ade80', size: [4, 6], growth: 0.004, compete: 0.6, type: 'native' },
+    plant2: { name: '在来木', icon: '🌿', color: '#22c55e', size: [5, 7], growth: 0.003, compete: 0.7, type: 'native' },
+    itadori: { name: 'イタドリ', icon: '🌱', color: '#eab308', size: [6, 9], growth: 0.007, compete: 1.6, type: 'invasive' },
+    kudzu: { name: 'クズ', icon: '🍃', color: '#ca8a04', size: [5, 8], growth: 0.008, compete: 1.5, type: 'invasive' },
+    endemic1: { name: '固有花', icon: '🌺', color: '#fbbf24', size: [4, 6], growth: 0.002, compete: 0.4, type: 'native' },
+    goat: { name: 'ヤギ', icon: '🐐', color: '#dc2626', size: [7, 10], growth: 0.002, compete: 2.0, type: 'invasive' },
+  };
+
+  // ==============================
+  // プリセットシナリオ
+  // ==============================
+
+  const presets = [
+    {
+      id: 'biwa',
+      title: '琵琶湖の外来魚問題',
+      desc: 'フナ・モロコ・エビがいる湖にブラックバスとブルーギルが侵入',
+      species: ['funa:30', 'moroko:25', 'ebi:20', 'bass:5', 'bluegill:5'],
+      env: { bgTop: '#0ea5e9', bgMid: '#0369a1', bgBottom: '#020617', ground: 'rgba(15,23,42,0.95)', waterLevel: 0.8 }
+    },
+    {
+      id: 'invasion',
+      title: '外来種の初期侵入',
+      desc: '在来種が安定している湖に、外来種が少数侵入した瞬間',
+      species: ['funa:40', 'moroko:30', 'ebi:30', 'bass:3'],
+      env: { bgTop: '#0ea5e9', bgMid: '#0369a1', bgBottom: '#020617', ground: 'rgba(15,23,42,0.95)', waterLevel: 0.8 }
+    },
+    {
+      id: 'mountain',
+      title: '山林の植物競争',
+      desc: '在来植物の森林にイタドリ・クズが侵入',
+      species: ['plant1:30', 'plant2:25', 'itadori:10', 'kudzu:8'],
+      env: { bgTop: '#22c55e', bgMid: '#15803d', bgBottom: '#14532d', ground: 'rgba(20,40,15,0.95)', waterLevel: 0.7 }
+    },
+    {
+      id: 'island',
+      title: '島の固有種危機',
+      desc: '小笠原諸島：固有植物がヤギに食べられる',
+      species: ['endemic1:25', 'plant2:20', 'goat:8'],
+      env: { bgTop: '#f59e0b', bgMid: '#d97706', bgBottom: '#92400e', ground: 'rgba(40,30,10,0.95)', waterLevel: 0.75 }
+    },
+    {
+      id: 'balanced',
+      title: '共存状態',
+      desc: '在来種と外来種が共存している状態（不安定な均衡）',
+      species: ['funa:20', 'moroko:20', 'bass:15', 'bluegill:10'],
+      env: { bgTop: '#0ea5e9', bgMid: '#0369a1', bgBottom: '#020617', ground: 'rgba(15,23,42,0.95)', waterLevel: 0.8 }
+    }
+  ];
+
+  let selectedPreset = presets[0];
+  let currentEnv = presets[0].env;
+
+  // ==============================
+  // 個体クラス
+  // ==============================
+
+  class Individual {
+    constructor(x, y, speciesKey, params = {}) {
+      this.speciesKey = speciesKey;
+      this.species = speciesData[speciesKey];
+      this.x = x;
+      this.y = y;
+      this.vx = (Math.random() - 0.5) * 30;
+      this.vy = (Math.random() - 0.5) * 30;
+      
+      const [minSize, maxSize] = this.species.size;
+      this.radius = minSize + Math.random() * (maxSize - minSize);
+      this.growthRate = params.growthRate !== undefined ? params.growthRate : this.species.growth;
+      this.competitiveness = params.competitiveness !== undefined ? params.competitiveness : this.species.compete;
+      this.age = 0;
+      this.id = Math.random();
+    }
+
+    update(dt, w, h, waterLevel) {
+      this.x += this.vx * dt;
+      this.y += this.vy * dt;
+
+      const maxY = h * waterLevel;
+      if (this.x - this.radius < 0 || this.x + this.radius > w) {
+        this.vx *= -1;
+        this.x = Math.max(this.radius, Math.min(w - this.radius, this.x));
+      }
+      if (this.y - this.radius < 0 || this.y + this.radius > maxY) {
+        this.vy *= -1;
+        this.y = Math.max(this.radius, Math.min(maxY - this.radius, this.y));
+      }
+
+      this.vx *= 0.995;
+      this.vy *= 0.995;
+      this.age += dt;
+    }
+
+    draw(ctx) {
+      const fontSize = this.radius * 3;
+      ctx.font = `${fontSize}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+      ctx.shadowBlur = 3;
+      ctx.shadowOffsetX = 1;
+      ctx.shadowOffsetY = 1;
+      
+      ctx.fillText(this.species.icon, this.x, this.y);
+      
+      ctx.shadowColor = 'transparent';
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
+    }
+
+    contains(px, py) {
+      const dx = px - this.x;
+      const dy = py - this.y;
+      const hitRadius = this.radius * 1.5;
+      return dx * dx + dy * dy < hitRadius * hitRadius;
+    }
+  }
+
+  // ==============================
+  // 状態管理
+  // ==============================
+
+  let individuals = [];
+  let history = { times: [], species: {}, maxPoints: 150 };
+  let state = { t: 0, isPaused: true };
+  let timeScale = 1.0;
+  let lastTime = null;
+  let speciesParams = {};
+
+  // ==============================
+  // UI初期化
+  // ==============================
+
+  const presetGrid = document.getElementById('presetGrid');
+  const loadPresetBtn = document.getElementById('loadPresetBtn');
+  const playBtn = document.getElementById('playBtn');
+  const pauseBtn = document.getElementById('pauseBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const speedSlider = document.getElementById('speedSlider');
+  const speedValue = document.getElementById('speedValue');
+  const timeDisplay = document.getElementById('timeDisplay');
+  const populationSummary = document.getElementById('populationSummary');
+  const legend = document.getElementById('legend');
+  const analysisContent = document.getElementById('analysisContent');
+  const paramControls = document.getElementById('paramControls');
+
+  function renderPresets() {
+    presetGrid.innerHTML = '';
+    presets.forEach(preset => {
+      const card = document.createElement('div');
+      card.className = 'preset-card';
+      if (preset.id === selectedPreset.id) card.classList.add('selected');
+      
+      const icons = preset.species.map(s => {
+        const key = s.split(':')[0];
+        return speciesData[key].icon;
+      }).join(' ');
+      
+      card.innerHTML = `
+        <div class="preset-title">${preset.title}</div>
+        <div class="preset-desc">${preset.desc}</div>
+        <div class="preset-species">${icons}</div>
+      `;
+      
+      card.addEventListener('click', () => {
+        selectedPreset = preset;
+        renderPresets();
+      });
+      
+      presetGrid.appendChild(card);
+    });
+  }
+
+  function renderParamControls() {
+    const uniqueSpecies = new Set();
+    individuals.forEach(ind => uniqueSpecies.add(ind.speciesKey));
+    
+    if (uniqueSpecies.size === 0) {
+      paramControls.innerHTML = '<p style="font-size: 10px; color: var(--text-muted); font-style: italic;">シナリオを読み込むとパラメータが表示されます</p>';
+      return;
+    }
+
+    paramControls.innerHTML = '';
+    uniqueSpecies.forEach(key => {
+      const species = speciesData[key];
+      const params = speciesParams[key] || { growth: species.growth, compete: species.compete };
+      
+      const div = document.createElement('div');
+      div.style.marginBottom = '12px';
+      div.innerHTML = `
+        <div style="font-size: 11px; font-weight: 600; margin-bottom: 6px; color: ${species.color};">
+          ${species.icon} ${species.name}
+        </div>
+        <div class="param-control">
+          <label>
+            <span>繁殖力</span>
+            <span class="value">${(params.growth * 100).toFixed(1)}%</span>
+          </label>
+          <input type="range" class="growth-slider" data-key="${key}" 
+                 min="0" max="1" step="0.001" value="${params.growth}">
+        </div>
+        <div class="param-control">
+          <label>
+            <span>競争力</span>
+            <span class="value">${params.compete.toFixed(1)}</span>
+          </label>
+          <input type="range" class="compete-slider" data-key="${key}" 
+                 min="0" max="3" step="0.1" value="${params.compete}">
+        </div>
+      `;
+      
+      paramControls.appendChild(div);
+      
+      const growthSlider = div.querySelector('.growth-slider');
+      const competeSlider = div.querySelector('.compete-slider');
+      
+      growthSlider.addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value);
+        speciesParams[key] = speciesParams[key] || {};
+        speciesParams[key].growth = val;
+        e.target.previousElementSibling.querySelector('.value').textContent = (val * 100).toFixed(1) + '%';
+        updateIndividualParams(key);
+      });
+      
+      competeSlider.addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value);
+        speciesParams[key] = speciesParams[key] || {};
+        speciesParams[key].compete = val;
+        e.target.previousElementSibling.querySelector('.value').textContent = val.toFixed(1);
+        updateIndividualParams(key);
+      });
+    });
+  }
+
+  function updateIndividualParams(key) {
+    const params = speciesParams[key];
+    individuals.forEach(ind => {
+      if (ind.speciesKey === key) {
+        if (params.growth !== undefined) ind.growthRate = params.growth;
+        if (params.compete !== undefined) ind.competitiveness = params.compete;
+      }
+    });
+  }
+
+  // ==============================
+  // シナリオ読み込み
+  // ==============================
+
+  function loadPreset() {
+    individuals = [];
+    history = { times: [], species: {}, maxPoints: 150 };
+    state.t = 0;
+    state.isPaused = true;
+    lastTime = null;
+    speciesParams = {};
+    currentEnv = selectedPreset.env;
+
+    const w = ecosystemCanvas.clientWidth;
+    const h = ecosystemCanvas.clientHeight;
+    const maxY = h * currentEnv.waterLevel;
+
+    selectedPreset.species.forEach(spec => {
+      const [key, countStr] = spec.split(':');
+      const count = parseInt(countStr);
+      
+      for (let i = 0; i < count; i++) {
+        const x = 30 + Math.random() * (w - 60);
+        const y = 30 + Math.random() * (maxY - 60);
+        individuals.push(new Individual(x, y, key));
+      }
+    });
+
+    updateLabels();
+    renderParamControls();
+    draw();
+    
+    pauseBtn.classList.add('paused');
+    playBtn.classList.remove('active');
+  }
+
+  // ==============================
+  // モデル更新
+  // ==============================
+
+  function updateModel(dt) {
+    const w = ecosystemCanvas.clientWidth;
+    const h = ecosystemCanvas.clientHeight;
+
+    individuals.forEach(ind => ind.update(dt, w, h, currentEnv.waterLevel));
+
+    // 競争
+    for (let i = individuals.length - 1; i >= 0; i--) {
+      const ind = individuals[i];
+      let pressure = 0;
+      
+      individuals.forEach(other => {
+        if (other.id !== ind.id) {
+          const dx = other.x - ind.x;
+          const dy = other.y - ind.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 30) {
+            pressure += other.competitiveness / ind.competitiveness;
+          }
+        }
+      });
+
+      if (Math.random() < pressure * 0.0001 * dt) {
+        individuals.splice(i, 1);
+      }
+    }
+
+    // 繁殖
+    const counts = {};
+    individuals.forEach(ind => {
+      counts[ind.speciesKey] = (counts[ind.speciesKey] || 0) + 1;
+    });
+
+    Object.entries(counts).forEach(([key, count]) => {
+      const ind = individuals.find(i => i.speciesKey === key);
+      if (ind && count > 0) {
+        const birthProb = ind.growthRate * count * dt;
+        if (Math.random() < birthProb && individuals.length < 200) {
+          const parents = individuals.filter(i => i.speciesKey === key);
+          if (parents.length > 0) {
+            const parent = parents[Math.floor(Math.random() * parents.length)];
+            const offsetX = (Math.random() - 0.5) * 50;
+            const offsetY = (Math.random() - 0.5) * 50;
+            const params = speciesParams[key] || {};
+            individuals.push(new Individual(
+              Math.max(10, Math.min(w - 10, parent.x + offsetX)),
+              Math.max(10, Math.min(h * currentEnv.waterLevel - 10, parent.y + offsetY)),
+              key,
+              params
+            ));
+          }
+        }
+      }
+    });
+
+    state.t += dt;
+
+    // 履歴
+    history.times.push(state.t);
+    const allKeys = new Set(individuals.map(i => i.speciesKey));
+    
+    allKeys.forEach(key => {
+      if (!history.species[key]) {
+        history.species[key] = new Array(history.times.length - 1).fill(0);
+      }
+      const count = individuals.filter(i => i.speciesKey === key).length;
+      history.species[key].push(count);
+    });
+    
+    Object.keys(history.species).forEach(key => {
+      if (!allKeys.has(key)) {
+        history.species[key].push(0);
+      }
+    });
+
+    if (history.times.length > history.maxPoints) {
+      history.times.shift();
+      Object.keys(history.species).forEach(key => {
+        if (history.species[key].length > 0) {
+          history.species[key].shift();
+        }
+      });
+    }
+
+    updateLabels();
+  }
+
+  // ==============================
+  // ラベル更新
+  // ==============================
+
+  function updateLabels() {
+    const counts = {};
+    individuals.forEach(ind => {
+      counts[ind.speciesKey] = (counts[ind.speciesKey] || 0) + 1;
+    });
+
+    populationSummary.innerHTML = '';
+    Object.entries(counts).forEach(([key, count]) => {
+      const species = speciesData[key];
+      const item = document.createElement('div');
+      item.className = 'pop-item';
+      item.innerHTML = `
+        <span class="species-indicator">${species.icon}</span>
+        <span class="species-count" style="color: ${species.color};">${count}</span>
+      `;
+      populationSummary.appendChild(item);
+    });
+
+    timeDisplay.textContent = state.t.toFixed(1) + 's';
+    
+    updateLegend();
+    updateAnalysis();
+  }
+
+  function updateLegend() {
+    const keys = new Set(individuals.map(i => i.speciesKey));
+    legend.innerHTML = '';
+    keys.forEach(key => {
+      const species = speciesData[key];
+      const item = document.createElement('div');
+      item.className = 'legend-item';
+      item.innerHTML = `
+        <div class="legend-color" style="background: ${species.color};"></div>
+        <span>${species.name}</span>
+      `;
+      legend.appendChild(item);
+    });
+  }
+
+  function updateAnalysis() {
+    if (state.t < 5 || individuals.length === 0) {
+      analysisContent.innerHTML = `<p style="color: var(--text-muted); font-style: italic; font-size: 10px;">シミュレーションが進行すると分析結果が表示されます</p>`;
+      return;
+    }
+
+    const counts = {};
+    individuals.forEach(ind => {
+      counts[ind.speciesKey] = (counts[ind.speciesKey] || 0) + 1;
+    });
+
+    const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    let html = '';
+    
+    if (sorted.length > 0) {
+      const dominant = speciesData[sorted[0][0]];
+      html += `<p><strong>優占種:</strong> ${dominant.icon} ${dominant.name} (${sorted[0][1]}個体)</p>`;
+    }
+
+    const nativeCount = individuals.filter(i => speciesData[i.speciesKey].type === 'native').length;
+    const invasiveCount = individuals.filter(i => speciesData[i.speciesKey].type === 'invasive').length;
+
+    html += `<p><strong>在来種:</strong> ${nativeCount} | <strong>外来種:</strong> ${invasiveCount}</p>`;
+
+    const extinct = [];
+    Object.keys(speciesData).forEach(key => {
+      if (!counts[key] && history.species[key] && history.species[key].some(v => v > 0)) {
+        extinct.push(speciesData[key].name);
+      }
+    });
+
+    if (extinct.length > 0) {
+      html += `<p style="color: #ef4444;"><strong>⚠️ 絶滅:</strong> ${extinct.join(', ')}</p>`;
+    }
+
+    analysisContent.innerHTML = html;
+  }
+
+  // ==============================
+  // 描画
+  // ==============================
+
+  function drawEcosystem() {
+    const ctx = ecoCtx;
+    const w = ecosystemCanvas.clientWidth;
+    const h = ecosystemCanvas.clientHeight;
+
+    ctx.clearRect(0, 0, w, h);
+    
+    const grd = ctx.createLinearGradient(0, 0, 0, h);
+    grd.addColorStop(0, currentEnv.bgTop);
+    grd.addColorStop(0.6, currentEnv.bgMid);
+    grd.addColorStop(1, currentEnv.bgBottom);
+    ctx.fillStyle = grd;
+    ctx.fillRect(0, 0, w, h);
+
+    ctx.fillStyle = currentEnv.ground;
+    ctx.fillRect(0, h * currentEnv.waterLevel, w, h * (1 - currentEnv.waterLevel));
+
+    individuals.forEach(ind => ind.draw(ctx));
+
+    if (state.isPaused) {
+      ctx.fillStyle = "rgba(251,191,36,0.1)";
+      ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = "rgba(251,191,36,0.9)";
+      ctx.font = "bold 20px system-ui";
+      ctx.textAlign = "center";
+      ctx.fillText("⏸ 停止中", w / 2, h / 2);
+      ctx.textAlign = "left";
+    }
+  }
+
+  function drawGraph() {
+    const ctx = graphCtx;
+    const w = graphCanvas.clientWidth;
+    const h = graphCanvas.clientHeight;
+
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = "#020617";
+    ctx.fillRect(0, 0, w, h);
+
+    ctx.strokeStyle = "rgba(148,163,184,0.5)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(28, 8, w - 38, h - 18);
+
+    ctx.fillStyle = "rgba(148,163,184,0.9)";
+    ctx.font = "9px system-ui";
+    ctx.fillText("個体数", 4, 14);
+    ctx.fillText("時間", w - 28, h - 6);
+
+    if (history.times.length < 2) return;
+
+    const left = 28;
+    const top = 10;
+    const width = w - 38;
+    const height = h - 22;
+    const maxY = 100;
+
+    ctx.strokeStyle = "rgba(55,65,81,0.75)";
+    ctx.lineWidth = 0.5;
+    ctx.setLineDash([2, 3]);
+    for (let i = 1; i <= 2; i++) {
+      const y = top + (height * i) / 3;
+      ctx.beginPath();
+      ctx.moveTo(left, y);
+      ctx.lineTo(left + width, y);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+
+    const nPoints = history.times.length;
+    const stepX = width / Math.max(nPoints - 1, 1);
+
+    Object.entries(history.species).forEach(([key, data]) => {
+      if (!data || data.length === 0) return;
+      const species = speciesData[key];
+      if (!species) return;
+
+      ctx.beginPath();
+      let started = false;
+      
+      for (let i = 0; i < nPoints; i++) {
+        const value = (i < data.length) ? (data[i] || 0) : 0;
+        const x = left + i * stepX;
+        const y = top + height * (1 - Math.min(value, maxY) / maxY);
+        
+        if (!started) {
+          ctx.moveTo(x, y);
+          started = true;
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+      
+      ctx.strokeStyle = species.color;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    });
+  }
+
+  function draw() {
+    drawEcosystem();
+    drawGraph();
+  }
+
+  function stepSimulation(dt) {
+    if (state.isPaused) return;
+    const scaled = dt * timeScale;
+    updateModel(Math.min(scaled, 0.1));
+  }
+
+  function animationLoop(timestamp) {
+    if (!lastTime) lastTime = timestamp;
+    const dt = (timestamp - lastTime) / 1000;
+    lastTime = timestamp;
+
+    stepSimulation(dt);
+    draw();
+    requestAnimationFrame(animationLoop);
+  }
+
+  // ==============================
+  // イベントリスナー
+  // ==============================
+
+  loadPresetBtn.addEventListener('click', loadPreset);
+
+  playBtn.addEventListener('click', () => {
+    state.isPaused = false;
+    playBtn.classList.add('active');
+    pauseBtn.classList.remove('paused');
+  });
+
+  pauseBtn.addEventListener('click', () => {
+    state.isPaused = true;
+    playBtn.classList.remove('active');
+    pauseBtn.classList.add('paused');
+  });
+
+  resetBtn.addEventListener('click', loadPreset);
+
+  speedSlider.addEventListener('input', (e) => {
+    timeScale = parseFloat(e.target.value);
+    speedValue.textContent = timeScale + 'x';
+  });
+
+  // タッチ・クリックイベント（個体削除）
+  function handleInteraction(e) {
+    e.preventDefault();
+    const rect = ecosystemCanvas.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+
+    for (let i = individuals.length - 1; i >= 0; i--) {
+      if (individuals[i].contains(x, y)) {
+        individuals.splice(i, 1);
+        updateLabels();
+        renderParamControls();
+        break;
+      }
+    }
+  }
+
+  ecosystemCanvas.addEventListener('click', handleInteraction);
+  ecosystemCanvas.addEventListener('touchstart', handleInteraction);
+
+  // ツールチップ
+  function handleTooltip(e) {
+    const rect = ecosystemCanvas.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+    
+    let found = false;
+    for (let ind of individuals) {
+      if (ind.contains(x, y)) {
+        tooltip.textContent = `${ind.species.icon} ${ind.species.name}`;
+        tooltip.style.left = clientX + 10 + 'px';
+        tooltip.style.top = clientY - 30 + 'px';
+        tooltip.classList.add('show');
+        found = true;
+        break;
+      }
+    }
+    
+    if (!found) {
+      tooltip.classList.remove('show');
+    }
+  }
+
+  ecosystemCanvas.addEventListener('mousemove', handleTooltip);
+  ecosystemCanvas.addEventListener('touchmove', handleTooltip);
+
+  ecosystemCanvas.addEventListener('mouseleave', () => {
+    tooltip.classList.remove('show');
+  });
+
+  ecosystemCanvas.addEventListener('touchend', () => {
+    tooltip.classList.remove('show');
+  });
+
+  // ==============================
+  // 初期化
+  // ==============================
+
+  renderPresets();
+  loadPreset();
+  requestAnimationFrame(animationLoop);
+</script>
+</body>
+</html>
